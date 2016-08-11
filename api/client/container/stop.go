@@ -9,11 +9,13 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
 type stopOptions struct {
 	time int
+	remove bool
 
 	containers []string
 }
@@ -35,6 +37,7 @@ func NewStopCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.IntVarP(&opts.time, "time", "t", 10, "Seconds to wait for stop before killing it")
+	flags.BoolVar(&opts.remove, "rm", false, "Remove the container after stopping")
 	return cmd
 }
 
@@ -48,6 +51,16 @@ func runStop(dockerCli *client.DockerCli, opts *stopOptions) error {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
+			if opts.remove == true {
+				options := types.ContainerRemoveOptions {
+					RemoveVolumes: true,
+					RemoveLinks:   true,
+					Force:         false,
+				}
+				if err := dockerCli.Client().ContainerRemove(ctx, container, options); err != nil {
+					errs = append(errs, err.Error())
+				}
+			}
 		}
 	}
 	if len(errs) > 0 {
